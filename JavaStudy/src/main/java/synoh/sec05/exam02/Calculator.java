@@ -1,4 +1,4 @@
-package sec05.exam02_SYNOH;
+package synoh.sec05.exam02;
 
 public class Calculator {
 

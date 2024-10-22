@@ -1,4 +1,4 @@
-package sec04.exam04_SYNOH;
+package synoh.sec04.exam01;
 
 public class CalculatorExample {
 
@@ -9,3 +9,4 @@ public class CalculatorExample {
 	}
 
 }
+

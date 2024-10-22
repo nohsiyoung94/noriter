@@ -1,4 +1,4 @@
-package sec05.exam01_SYNOH;
+package synoh.sec05.exam01;
 
 public class Car {
 	//Field 

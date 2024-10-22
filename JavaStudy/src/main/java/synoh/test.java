@@ -3,6 +3,7 @@ package synoh;
 public class test {
 	public static void main(String[] args) {
 		System.out.println("nosi");
-		System.out.println("¿­½ÉÈ÷ °øºÎÇÏ·Á°í ÇÕ´Ï´Ù. ÀÀ¿ø ºÎÅ¹µå¸³´Ï´Ù.");
+		System.out.println("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï·ï¿½ï¿½ï¿½ ï¿½Õ´Ï´ï¿½. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Å¹ï¿½å¸³ï¿½Ï´ï¿½.");
 	}
 }
+

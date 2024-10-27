@@ -25,7 +25,7 @@ public class Ex6_3 {
 		System.out.println("c2은 " + c2.kind + "," + c2.number + "이며, 크기는 (" + c2.width + "," +  c2.height +")");
 	}
 
-}
+} 
 
 
 

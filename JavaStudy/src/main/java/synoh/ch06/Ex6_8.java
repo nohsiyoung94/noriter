@@ -19,3 +19,4 @@ public class Ex6_8 {
 }
 
 class Data3 {int x;}
+ 

@@ -4,8 +4,5 @@ from bs4 import BeautifulSoup
 html = urlopen('https://finance.naver.com/')
 bs = BeautifulSoup(html, 'html.parser')
 
-title = bs.findAll(text = '삼성전자')
-print(len(title))
-
-textCls = bs.findAll(class_ = 'txt')
-print(textCls)
+for sb in bs.find('tbody', {'id':'_topItems1'}).tr.next_siblings:
+    print(sb)

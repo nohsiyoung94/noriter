@@ -101,7 +101,7 @@ class TikTokDownloader:
 
 def main():
     #user_id = input('Enter TikTok user ID: ')
-    user_id ='bb._0808'
+    user_id =
     downloader = TikTokDownloader()
     video_links = downloader.get_video_links(user_id)
     for video_url in video_links:

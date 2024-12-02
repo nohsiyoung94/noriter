@@ -52,6 +52,6 @@ def crawl_page(url):
         return None
 
 # URL 입력
-url = 'https://www.tiktok.com/@ohayomynightt'
+url = 'https://www.tiktok.com
 data = crawl_page(url)
 print(data)

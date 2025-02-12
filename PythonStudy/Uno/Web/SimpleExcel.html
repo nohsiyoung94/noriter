@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel-like Table with Sort & Filter</title>
+  <style>
+    /* 기본 테이블 스타일 */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  user-select: none;
+  table-layout: fixed;
+}
+
+/* 헤더 스타일 */
+th {
+  background-color: #f1f3f4;
+  border: 1px solid #dadce0;
+  padding: 8px;
+  text-align: center;
+  font-weight: bold;
+  position: relative;
+  white-space: nowrap;
+}
+
+/* 셀 스타일 */
+td {
+  border: 1px solid #dadce0;
+  padding: 8px;
+  text-align: right;
+  background-color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 선택된 셀 스타일 */
+.selected {
+  background-color: rgba(26, 115, 232, 0.1);
+  outline: 2px solid #1a73e8;
+  outline-offset: -2px;
+}
+
+/* 복사된 셀 스타일 */
+.copied {
+  background-color: #fff9c4;
+}
+
+/* 붙여넣은 셀 스타일 */
+.pasted {
+  background-color: #e8f5e9;
+}
+
+/* 정렬 버튼 스타일 */
+.sort-btn, .filter-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: 5px;
+  color: #5f6368;
+}
+
+/* 필터 모달 스타일 */
+.filter-modal {
+  position: absolute;
+  background: white;
+  border: 1px solid #dadce0;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px;
+  z-index: 1000;
+  font-size: 13px;
+}
+
+/* 필터 리스트 스타일 */
+.filter-modal ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.filter-modal li {
+  margin: 2px 0;
+}
+
+/* 입력 가능한 셀 */
+td[contenteditable="true"] {
+  cursor: text;
+}
+
+/* 활성화된 셀 (편집 중) */
+td:focus {
+  outline: 2px solid #1a73e8;
+  background-color: white;
+}
+
+  </style>
+</head>
+<body>
+  <table id="excelTable">
+    <thead>
+      <tr>
+        <!-- 헤더에 정렬 버튼과 필터 버튼을 추가합니다. -->
+        <th>
+          A
+          <button class="sort-btn" data-col-index="0" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="0">⚲</button>
+        </th>
+        <th>
+          B
+          <button class="sort-btn" data-col-index="1" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="1">⚲</button>
+        </th>
+        <th>
+          C
+          <button class="sort-btn" data-col-index="2" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="2">⚲</button>
+        </th>
+        <th>
+          D
+          <button class="sort-btn" data-col-index="3" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="3">⚲</button>
+        </th>
+        <th>
+          E
+          <button class="sort-btn" data-col-index="4" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="4">⚲</button>
+        </th>
+        <th>
+          F
+          <button class="sort-btn" data-col-index="5" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="5">⚲</button>
+        </th>
+        <th>
+          G
+          <button class="sort-btn" data-col-index="6" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="6">⚲</button>
+        </th>
+        <th>
+          H
+          <button class="sort-btn" data-col-index="7" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="7">⚲</button>
+        </th>
+        <th>
+          I
+          <button class="sort-btn" data-col-index="8" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="8">⚲</button>
+        </th>
+        <th>
+          J
+          <button class="sort-btn" data-col-index="9" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="9">⚲</button>
+        </th>
+        <th>
+          K
+          <button class="sort-btn" data-col-index="10" data-sort="none">⇅</button>
+          <button class="filter-btn" data-col-index="10">⚲</button>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+  <!-- 필터 모달 컨테이너 (동적으로 생성 후 body에 붙일 예정) -->
+</body>
+</html>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  class ExcelTable {
+    constructor(tableId, rows, cols) {
+      this.tableBody = document.querySelector(`#${tableId} tbody`);
+      this.rows = rows;
+      this.cols = cols;
+      this.isMouseDown = false;
+      this.startCell = null;
+      this.endCell = null;
+      this.copiedData = [];
+      // 정렬 조건과 필터 조건을 저장할 객체들
+      this.sortCriteria = [];
+      this.filters = {};      // 예: {0: Set([...]), 1: Set([...]), ...}
+      this.lastUnique = {};   // 각 컬럼의 전체 유니크 값들을 저장
+
+      // 초기 테이블 생성 및 이벤트 등록
+      this.initTable();
+      this.initMouseEvents();
+      this.initCopyPasteEvents();
+      this.initSortEvents();
+      this.initFilterEvents();
+    }
+
+    // 랜덤 숫자 생성 함수 (0 ~ 999)
+    getRandomNumber = () => Math.floor(Math.random() * 1000);
+
+    // 테이블 생성: 행/열의 셀을 생성하고 원래 순서를 data-original-index에 저장
+    initTable = () => {
+      for (let i = 0; i < this.rows; i++) {
+        const row = document.createElement('tr');
+        row.dataset.originalIndex = i; // 원래 순서 저장
+        for (let j = 0; j < this.cols; j++) {
+          const cell = document.createElement('td');
+          cell.contentEditable = 'true';
+          cell.textContent = this.getRandomNumber();
+          // 클릭 시 붙여넣기 후 스타일 초기화를 위해 clearPasted() 호출
+          cell.addEventListener('click', () => this.clearPasted());
+          row.appendChild(cell);
+        }
+        this.tableBody.appendChild(row);
+      }
+    };
+
+    // 마우스 이벤트 초기화: 드래그로 셀 선택
+    initMouseEvents = () => {
+      // mousedown: 시작 셀을 기록하고 선택 영역 초기화
+      this.tableBody.addEventListener('mousedown', (event) => {
+        if (event.target.tagName !== 'TD') return;
+        this.isMouseDown = true;
+        this.startCell = event.target;
+        this.clearSelection();
+        event.target.classList.add('selected');
+      });
+
+      // mouseover: 드래그 중 현재 셀까지 선택 영역에 포함
+      this.tableBody.addEventListener('mouseover', (event) => {
+        if (!this.isMouseDown || event.target.tagName !== 'TD') return;
+        this.clearSelection();
+        this.endCell = event.target;
+        const startRow = Math.min(this.startCell.parentNode.rowIndex, this.endCell.parentNode.rowIndex);
+        const endRow = Math.max(this.startCell.parentNode.rowIndex, this.endCell.parentNode.rowIndex);
+        const startCol = Math.min(this.startCell.cellIndex, this.endCell.cellIndex);
+        const endCol = Math.max(this.startCell.cellIndex, this.endCell.cellIndex);
+        for (let i = startRow; i <= endRow; i++) {
+          for (let j = startCol; j <= endCol; j++) {
+            this.tableBody.rows[i - 1].cells[j].classList.add('selected');
+          }
+        }
+      });
+
+      // mouseup: 드래그 종료
+      this.tableBody.addEventListener('mouseup', () => {
+        this.isMouseDown = false;
+      });
+      document.body.addEventListener('mouseup', this.highlightCells);
+    };
+
+    // 복사, 붙여넣기, Delete 키 이벤트 초기화
+    initCopyPasteEvents = () => {
+      // 복사 이벤트: 선택된 셀을 복사하여 클립보드에 저장
+      document.addEventListener('copy', (event) => {
+        const selectedCells = document.querySelectorAll('.selected');
+        if (selectedCells.length === 0) return;
+        event.preventDefault();
+        this.clearCopied();
+        this.copiedData = [];
+        let currentRow = selectedCells[0].parentNode.rowIndex - 1;
+        let rowValues = [];
+        selectedCells.forEach(cell => {
+          if (cell.parentNode.rowIndex - 1 !== currentRow) {
+            this.copiedData.push(rowValues);
+            rowValues = [];
+            currentRow = cell.parentNode.rowIndex - 1;
+          }
+          rowValues.push(cell.textContent);
+          cell.classList.add('copied');
+        });
+        this.copiedData.push(rowValues);
+        event.clipboardData.setData('text/plain', this.copiedData.map(row => row.join('\t')).join('\n'));
+        this.highlightCells();
+      });
+
+      // 붙여넣기 이벤트: 클립보드 데이터를 선택된 셀 위치부터 붙여넣기
+      document.addEventListener('paste', (event) => {
+        event.preventDefault();
+        const clipboardText = event.clipboardData.getData('text/plain');
+        if (!clipboardText) return;
+        const rowsData = clipboardText.split('\n').map(row => row.split('\t'));
+        const selectedCells = document.querySelectorAll('.selected');
+        if (selectedCells.length === 0) return;
+        const startRow = selectedCells[0].parentNode.rowIndex - 1;
+        const startCol = selectedCells[0].cellIndex;
+        rowsData.forEach((rowData, i) => {
+          rowData.forEach((cellData, j) => {
+            const rowIndex = startRow + i;
+            const colIndex = startCol + j;
+            if (rowIndex < this.tableBody.rows.length && colIndex < this.tableBody.rows[rowIndex].cells.length) {
+              this.tableBody.rows[rowIndex].cells[colIndex].textContent = cellData;
+              this.tableBody.rows[rowIndex].cells[colIndex].classList.add('pasted');
+            }
+          });
+        });
+        this.highlightCells();
+      });
+
+      // Delete 키 이벤트: 선택된 셀 내용 삭제
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Delete') {
+          document.querySelectorAll('.selected').forEach(cell => cell.textContent = '');
+          event.preventDefault();
+        }
+        this.highlightCells();
+      });
+    };
+
+    // 정렬 기능 초기화: 정렬 버튼 클릭 시 다중 정렬 적용
+    initSortEvents = () => {
+      const sortBtns = document.querySelectorAll('.sort-btn');
+      sortBtns.forEach(btn => {
+        btn.addEventListener('click', (event) => {
+          this.clearSelection();
+          this.clearCopied();
+          this.clearPasted();
+          const colIndex = parseInt(btn.getAttribute('data-col-index'));
+          let sortState = btn.getAttribute('data-sort'); // 'none', 'asc', 'desc'
+          if (sortState === 'none' || sortState === null) {
+            sortState = 'asc';
+            btn.textContent = '↑';
+            btn.style.color = 'blue';
+          } else if (sortState === 'asc') {
+            sortState = 'desc';
+            btn.textContent = '↓';
+            btn.style.color = 'red';
+          } else if (sortState === 'desc') {
+            sortState = 'none';
+            btn.textContent = '⇅';
+            btn.style.color = 'black';
+          }
+          btn.setAttribute('data-sort', sortState);
+          this.sortCriteria = this.sortCriteria.filter(c => c.colIndex !== colIndex);
+          if (sortState !== 'none') this.sortCriteria.push({ colIndex, sort: sortState });
+          const rowsArray = Array.from(this.tableBody.querySelectorAll('tr'));
+          if (this.sortCriteria.length > 0) {
+            rowsArray.sort((a, b) => {
+              for (let criterion of this.sortCriteria) {
+                const { colIndex, sort } = criterion;
+                const cellA = a.cells[colIndex].textContent.trim();
+                const cellB = b.cells[colIndex].textContent.trim();
+                const numA = parseFloat(cellA);
+                const numB = parseFloat(cellB);
+                let comp = 0;
+                if (!isNaN(numA) && !isNaN(numB)) {
+                  comp = numA - numB;
+                } else {
+                  comp = cellA.localeCompare(cellB);
+                }
+                if (comp !== 0) return sort === 'asc' ? comp : -comp;
+              }
+              return parseInt(a.dataset.originalIndex) - parseInt(b.dataset.originalIndex);
+            });
+          } else {
+            rowsArray.sort((a, b) => parseInt(a.dataset.originalIndex) - parseInt(b.dataset.originalIndex));
+          }
+          rowsArray.forEach(row => this.tableBody.appendChild(row));
+          this.highlightCells();
+        });
+      });
+    };
+
+    // 필터 기능 초기화: 필터 버튼 클릭 시 검색 및 전체 선택 기능이 포함된 모달 생성
+    initFilterEvents = () => {
+      const filterBtns = document.querySelectorAll('.filter-btn');
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', (event) => {
+          this.clearSelection();
+          this.clearCopied();
+          this.clearPasted();
+          this.removeFilterModal();
+          const colIndex = parseInt(btn.getAttribute('data-col-index'));
+          // 최신 데이터 값 스캔하여 유니크 배열 생성
+          const uniqueValues = new Set();
+          Array.from(this.tableBody.querySelectorAll('tr')).forEach(row => {
+            const val = row.cells[colIndex].textContent.trim();
+            uniqueValues.add(val);
+          });
+          const uniqueArray = Array.from(uniqueValues).sort((a, b) => {
+            const numA = parseFloat(a), numB = parseFloat(b);
+            return (isNaN(numA) || isNaN(numB)) ? a.localeCompare(b) : numA - numB;
+          });
+          // 기존 필터 상태 유지 및 최신 데이터 업데이트
+          let currentFilter = this.filters[colIndex] || new Set(uniqueArray);
+          this.filters[colIndex] = currentFilter;
+          this.lastUnique[colIndex] = new Set(uniqueArray);
+          // 모달 생성 및 스타일 지정
+          const modal = document.createElement('div');
+          modal.className = 'filter-modal';
+          modal.style.width = '170px';
+          // 검색 입력 필드 + 전체 선택 체크박스 컨테이너 생성
+          const searchContainer = document.createElement('div');
+          searchContainer.style.display = 'flex';
+          searchContainer.style.alignItems = 'center';
+          searchContainer.style.justifyContent = 'space-between';
+          searchContainer.style.marginBottom = '5px';
+          const searchInput = document.createElement('input');
+          searchInput.type = 'text';
+          searchInput.placeholder = '검색...';
+          searchInput.style.flex = '1';
+          searchInput.style.boxSizing = 'border-box';
+          const selectAllCheckbox = document.createElement('input');
+          selectAllCheckbox.type = 'checkbox';
+          selectAllCheckbox.checked = (currentFilter.size === uniqueArray.length);
+          searchContainer.appendChild(selectAllCheckbox);
+          searchContainer.appendChild(searchInput);
+          modal.appendChild(searchContainer);
+          // 검색 기능: 키 입력 시 모달 내 리스트 필터링
+          searchInput.addEventListener('keyup', () => {
+            const term = searchInput.value.trim().toLowerCase();
+            const listItems = modal.querySelectorAll('ul li');
+            listItems.forEach(li => {
+              const text = li.textContent.trim().toLowerCase();
+              li.style.display = text.includes(term) ? '' : 'none';
+            });
+          });
+          // 필터 리스트 생성 (ul) 및 개별 체크박스 이벤트 등록
+          const ul = document.createElement('ul');
+          uniqueArray.forEach(val => {
+            const li = document.createElement('li');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = currentFilter.has(val);
+            checkbox.dataset.value = val;
+            // 개별 체크박스 클릭 시 필터 업데이트
+            checkbox.addEventListener('change', () => {
+              this.updateFilter(colIndex);
+              this.updateSelectAllCheckboxState(colIndex, selectAllCheckbox);
+            });
+            const label = document.createElement('label');
+            label.textContent = ' ' + val;
+            li.appendChild(checkbox);
+            li.appendChild(label);
+            ul.appendChild(li);
+          });
+          modal.appendChild(ul);
+          document.body.appendChild(modal);
+          // 전체 선택 체크박스 클릭 이벤트 등록
+          selectAllCheckbox.addEventListener('change', () => {
+            const checkboxes = modal.querySelectorAll('ul li input[type=\"checkbox\"]');
+            checkboxes.forEach(chk => chk.checked = selectAllCheckbox.checked);
+            this.updateFilter(colIndex);
+          });
+          // 모달 위치 지정 (필터 버튼 바로 아래 위치하도록)
+          const btnRect = btn.getBoundingClientRect();
+          modal.style.top = (btnRect.bottom + window.scrollY) + 'px';
+          modal.style.left = (btnRect.left + window.scrollX) + 'px';
+          // 외부 클릭 시 모달 제거 이벤트 등록
+          setTimeout(() => document.addEventListener('click', this.outsideClickListener), 0);
+        });
+      });
+    };
+
+    // 필터 업데이트: 모달 내 체크박스 상태에 따라 filters 업데이트 후 테이블에 적용
+    updateFilter = (colIndex) => {
+      const modal = document.querySelector('.filter-modal');
+      if (!modal) return;
+      const checkboxes = modal.querySelectorAll('ul li input[type=\"checkbox\"]');
+      const allowed = new Set();
+      checkboxes.forEach(chk => { if (chk.checked) allowed.add(chk.dataset.value); });
+      this.filters[colIndex] = allowed;
+      this.applyFilters();
+    };
+
+    // 테이블 필터 적용: 현재 filters 조건에 따라 행 표시 여부 결정
+    applyFilters = () => {
+      Array.from(this.tableBody.querySelectorAll('tr')).forEach(row => {
+        let visible = true;
+        for (let col in this.filters) {
+          const allowed = this.filters[col];
+          const cellValue = row.cells[col].textContent.trim();
+          if (!allowed.has(cellValue)) { visible = false; break; }
+        }
+        row.style.display = visible ? '' : 'none';
+      });
+      this.updateFilterButtonStyles();
+    };
+
+    // 전체 선택 체크박스 상태 업데이트
+    updateSelectAllCheckboxState = (colIndex, selectAllCheckbox) => {
+      const modal = document.querySelector('.filter-modal');
+      if (!modal) return;
+      const checkboxes = modal.querySelectorAll('ul li input[type=\"checkbox\"]');
+      const totalCount = checkboxes.length;
+      const checkedCount = Array.from(checkboxes).filter(chk => chk.checked).length;
+      selectAllCheckbox.checked = (checkedCount === totalCount);
+    };
+
+    // 외부 클릭 시 필터 모달 닫기
+    outsideClickListener = (event) => {
+      const modal = document.querySelector('.filter-modal');
+      if (modal && !modal.contains(event.target) && !event.target.classList.contains('filter-btn')) {
+        this.removeFilterModal();
+      }
+    };
+
+    // 필터 모달 제거
+    removeFilterModal = () => {
+      const modal = document.querySelector('.filter-modal');
+      if (modal) {
+        modal.parentNode.removeChild(modal);
+        document.removeEventListener('click', this.outsideClickListener);
+      }
+    };
+
+    // 필터 버튼 상태 업데이트: 필터 조건 적용 시 빨간색, 아니면 검은색
+    updateFilterButtonStyles = () => {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        const colIndex = parseInt(btn.getAttribute('data-col-index'));
+        if (this.filters[colIndex] && this.filters[colIndex].size < this.lastUnique[colIndex].size) {
+          btn.style.color = 'red';
+        } else {
+          btn.style.color = 'black';
+        }
+      });
+    };
+
+    // 유틸리티 함수들: 선택 영역, 복사/붙여넣기 초기화 및 셀 하이라이트
+    clearSelection = () => {
+      document.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
+    };
+
+    clearCopied = () => {
+      document.querySelectorAll('.copied').forEach(cell => {
+        cell.classList.remove('copied');
+        cell.style.backgroundColor = '#ffff9b';
+      });
+    };
+
+    clearPasted = () => {
+      document.querySelectorAll('.pasted').forEach(cell => {
+        cell.classList.remove('pasted');
+        cell.style.backgroundColor = '';
+      });
+    };
+
+    highlightCells = () => {
+      document.querySelectorAll('td').forEach(cell => {
+        cell.style.backgroundColor = cell.classList.contains('selected') ? '#d3d3d3' : '';
+      });
+    };
+  }
+  
+  // 'excelTable' ID의 테이블을 32행 11열로 구성하는 ExcelTable 클래스 인스턴스 생성
+  new ExcelTable('excelTable', 32, 11);
+});
+
+</script>

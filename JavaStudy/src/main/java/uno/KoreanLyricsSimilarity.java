@@ -1,4 +1,4 @@
-package main.java.uno.book;
+package main.java.uno;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.TreeMap;
 
-public class Book {
+public class KoreanLyricsSimilarity {
 	private static final List<String> LYRICS_DB = Arrays.asList("그대와 함께한 시간 속에", "널 사랑해 언제나 변치 않아", "이별 후에 남겨진 기억들");
 
 	public static void main(String[] args) {
@@ -81,5 +81,4 @@ public class Book {
 		}
 		return maxLen;
 	}
-
 }
